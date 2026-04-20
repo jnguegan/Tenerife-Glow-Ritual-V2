@@ -116,20 +116,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
-  <script src="auth.js"></script>
+  <script src="js/auth.js"></script>
 
   <script>
   document.addEventListener("DOMContentLoaded", function() {
     const form = document.getElementById("loginForm");
     const errorDiv = document.getElementById("errorMessage");
     const forgotLink = document.getElementById("forgotLink");
-
-    // Check if already logged in
-    window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        window.location.href = "dashboard.html";
-      }
-    });
 
     form.addEventListener("submit", async function(e) {
       e.preventDefault();
@@ -156,11 +149,6 @@
 
     forgotLink.addEventListener("click", function(e) {
       e.preventDefault();
-      const email = document.getElementById("email").value.trim();
-      if (!email) {
-        alert("Por favor ingresa tu correo electrónico primero.");
-        return;
-      }
       alert("Funcionalidad de reseteo de contraseña disponible próximamente.");
     });
   });
