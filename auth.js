@@ -1,7 +1,7 @@
 const db = window.supabaseClient;
 
-async function signUpNew(email, password, fullName) {
-  const { data, error } = await db.auth.signUp({
+function signUpNew(email, password, fullName) {
+  return db.auth.signUp({
     email,
     password,
     options: {
@@ -9,132 +9,139 @@ async function signUpNew(email, password, fullName) {
         full_name: fullName
       }
     }
+  }).then(({ data, error }) => {
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    if (data?.user) {
+      // Create user profile in background
+      db.from("users_simple").insert({
+        id: data.user.id,
+        email: email,
+        full_name: fullName
+      }).catch(err => console.error("Profile error:", err));
+      
+      // Redirect after 500ms
+      setTimeout(() => {
+        window.location.href = "profile.html";
+      }, 500);
+      
+      return { ok: true, user: data?.user || null };
+    }
+    return { ok: false, error: "No user returned" };
+  }).catch(err => {
+    return { ok: false, error: err.message };
   });
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  if (data?.user) {
-    // Create user profile
-    await db.from("users_simple").insert({
-      id: data.user.id,
-      email: email,
-      full_name: fullName
-    });
-  }
-
-  return { ok: true, user: data?.user || null };
 }
 
-async function logInNew(email, password) {
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    return { ok: false, error: error.message };
-  }
-
-  if (data?.user) {
-    return { ok: true, user: data.user };
-  }
-
-  return { ok: false, error: "No user returned" };
+function logInNew(email, password) {
+  return db.auth.signInWithPassword({ email, password }).then(({ data, error }) => {
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+    if (data?.user) {
+      return { ok: true, user: data.user };
+    }
+    return { ok: false, error: "No user returned" };
+  }).catch(err => {
+    return { ok: false, error: err.message };
+  });
 }
 
 function logOutNew() {
   localStorage.removeItem("tgr-language");
+  localStorage.clear();
   db.auth.signOut().catch(err => console.error("SignOut error:", err));
   
   setTimeout(() => {
-    window.location.href = "index-new.html";
+    window.location.href = "index.html";
   }, 100);
 }
 
-async function getSessionNew() {
-  const { data: { session } } = await db.auth.getSession();
-  return session;
+function getSessionNew() {
+  return db.auth.getSession().then(({ data: { session } }) => {
+    return session;
+  });
 }
 
-async function updateProfileNew(fullName, skinType, goal) {
-  const session = await getSessionNew();
-  if (!session) return { ok: false };
-
-  const { error } = await db.from("users_simple").update({
-    full_name: fullName,
-    skin_type: skinType,
-    goal: goal
-  }).eq("id", session.user.id);
-
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-async function completeRitualNew() {
-  const session = await getSessionNew();
-  if (!session) return { ok: false };
-
-  const today = new Date().toISOString().split("T")[0];
-
-  const { error } = await db.from("ritual_tracking").upsert({
-    user_id: session.user.id,
-    completed_date: today,
-    completed_at: new Date().toISOString()
-  }, { onConflict: "user_id,completed_date" });
-
-  if (error) return { ok: false, error: error.message };
-
-  // Trigger email notification (via function or webhook)
-  await sendCompletionEmail(session.user.email, session.user.user_metadata?.full_name || "User");
-
-  return { ok: true };
-}
-
-async function sendCompletionEmail(email, name) {
-  // Call a Supabase Edge Function or backend API
-  try {
-    await db.functions.invoke('send-completion-email', {
-      body: { email, name }
+function updateProfileNew(fullName, skinType, goal) {
+  return getSessionNew().then(session => {
+    if (!session) return { ok: false };
+    
+    return db.from("users_simple").update({
+      full_name: fullName,
+      skin_type: skinType,
+      goal: goal
+    }).eq("id", session.user.id).then(({ error }) => {
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
     });
-  } catch (err) {
-    console.error("Email error:", err);
-  }
+  });
 }
 
-async function getUserProfileNew() {
-  const session = await getSessionNew();
-  if (!session) return null;
-
-  const { data } = await db.from("users_simple").select("*").eq("id", session.user.id).single();
-  return data;
+function completeRitualNew() {
+  return getSessionNew().then(session => {
+    if (!session) return { ok: false };
+    
+    const today = new Date().toISOString().split("T")[0];
+    
+    db.from("ritual_tracking").upsert({
+      user_id: session.user.id,
+      completed_date: today,
+      completed_at: new Date().toISOString()
+    }, { onConflict: "user_id,completed_date" }).catch(err => console.error("Ritual error:", err));
+    
+    // Send email in background
+    sendCompletionEmail(session.user.email, session.user.user_metadata?.full_name || "User");
+    
+    return { ok: true };
+  });
 }
 
-async function getRitualStatsNew() {
-  const session = await getSessionNew();
-  if (!session) return null;
+function sendCompletionEmail(email, name) {
+  db.functions.invoke('send-email', {
+    body: { email, name, type: 'completion' }
+  }).catch(err => console.error("Email error:", err));
+}
 
-  const { data } = await db.from("ritual_tracking").select("completed_date").eq("user_id", session.user.id);
-  
-  const completedDates = (data || []).map(r => r.completed_date);
-  const daysCompleted = completedDates.length;
-  
-  // Calculate streak
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  let streak = 0;
-  let check = new Date(today);
+function getUserProfileNew() {
+  return getSessionNew().then(session => {
+    if (!session) return null;
+    
+    return db.from("users_simple").select("*").eq("id", session.user.id).single().then(({ data }) => {
+      return data;
+    });
+  });
+}
 
-  for (const dateStr of completedDates.sort((a, b) => new Date(b) - new Date(a))) {
-    const d = new Date(dateStr);
-    d.setHours(0, 0, 0, 0);
-    if (d.getTime() === check.getTime()) {
-      streak++;
-      check.setDate(check.getDate() - 1);
-    } else {
-      break;
-    }
-  }
-
-  return { daysCompleted, streak, completedDates };
+function getRitualStatsNew() {
+  return getSessionNew().then(session => {
+    if (!session) return null;
+    
+    return db.from("ritual_tracking").select("completed_date").eq("user_id", session.user.id).then(({ data }) => {
+      const completedDates = (data || []).map(r => r.completed_date);
+      const daysCompleted = completedDates.length;
+      
+      // Calculate streak
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let streak = 0;
+      let check = new Date(today);
+      
+      for (const dateStr of completedDates.sort((a, b) => new Date(b) - new Date(a))) {
+        const d = new Date(dateStr);
+        d.setHours(0, 0, 0, 0);
+        if (d.getTime() === check.getTime()) {
+          streak++;
+          check.setDate(check.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+      
+      return { daysCompleted, streak, completedDates };
+    });
+  });
 }
 
 window.tgrNew = {
