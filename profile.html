@@ -66,9 +66,6 @@
     .success-message { background: #eef8ee; border: 1px solid #b7dbb7; color: #2f6b2f; padding: 12px 16px; margin-bottom: 1rem; font-size: 13px; border-radius: var(--radius); display: none; }
     .success-message.show { display: block; }
     
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
-    .form-wrap { animation: fadeUp 0.5s ease both; }
-    
     @media (max-width: 768px) { 
       .topbar { padding: 0 1.5rem; } 
       .page-hero { padding: 2rem 1.5rem 1.5rem; } 
@@ -101,7 +98,6 @@
     <div class="success-message" id="successMessage"></div>
 
     <form id="profileForm">
-      <!-- Basic info -->
       <p class="section-label">Información básica</p>
       <h3 class="section-heading">Sobre ti</h3>
       <p class="section-copy">Necesitamos tu nombre para personalizar tu experiencia.</p>
@@ -113,7 +109,6 @@
 
       <hr class="section-divider" />
 
-      <!-- Skin profile -->
       <p class="section-label">Tu piel</p>
       <h3 class="section-heading">Define tu tipo de piel y objetivo</h3>
       <p class="section-copy">Esta información nos ayuda a recomendar productos y rituales específicos para ti.</p>
@@ -146,7 +141,6 @@
 
       <hr class="section-divider" />
 
-      <!-- Ritual setup -->
       <p class="section-label">Tu ritual</p>
       <h3 class="section-heading">Tiempo disponible</h3>
       <p class="section-copy">¿Cuánto tiempo tienes cada día para tu ritual?</p>
@@ -170,7 +164,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
-  <script src="auth.js"></script>
+  <script src="js/auth.js"></script>
 
   <script>
   document.addEventListener("DOMContentLoaded", async function() {
@@ -178,14 +172,12 @@
     const errorDiv = document.getElementById("errorMessage");
     const successDiv = document.getElementById("successMessage");
 
-    // Check session
     const session = await window.tgrNew.getSessionNew();
     if (!session) {
       window.location.href = "login.html";
       return;
     }
 
-    // Load existing profile
     const profile = await window.tgrNew.getUserProfileNew();
     if (profile) {
       document.getElementById("fullName").value = profile.full_name || "";
@@ -194,7 +186,6 @@
       document.getElementById("dailyMinutes").value = profile.daily_minutes || "";
     }
 
-    // Form submission
     form.addEventListener("submit", async function(e) {
       e.preventDefault();
       errorDiv.classList.remove("show");
@@ -215,7 +206,6 @@
       btn.disabled = true;
       btn.textContent = "Guardando...";
 
-      // Update profile
       const result = await window.tgrNew.updateProfileNew(fullName, skinType, goal);
 
       if (!result.ok) {
@@ -224,7 +214,6 @@
         btn.disabled = false;
         btn.textContent = "Guardar perfil";
       } else {
-        // Also save daily_minutes to database
         try {
           const dbSession = await window.tgrNew.getSessionNew();
           await window.supabaseClient.from("users_simple").update({
