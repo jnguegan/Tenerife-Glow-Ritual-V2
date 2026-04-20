@@ -7,7 +7,7 @@ function getDb() {
 
 async function signUpNew(email, password, fullName) {
   try {
-    const db = window.supabaseClient;
+    const db = getDb();
 
     const { data, error } = await db.auth.signUp({
       email,
@@ -23,8 +23,6 @@ async function signUpNew(email, password, fullName) {
       return { ok: false, error: error.message };
     }
 
-    // ⚠️ DO NOT insert into users_simple here anymore
-
     const {
       data: { session }
     } = await db.auth.getSession();
@@ -35,7 +33,6 @@ async function signUpNew(email, password, fullName) {
       sessionExists: !!session,
       fullName
     };
-
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -67,7 +64,6 @@ async function logInNew(email, password) {
 async function logOutNew() {
   try {
     const db = getDb();
-
     localStorage.removeItem("tgr-language");
     await db.auth.signOut();
     window.location.href = "index.html";
@@ -99,30 +95,21 @@ async function updateProfileNew(fullName, skinType, goal, dailyMinutes) {
       return { ok: false, error: "No active session." };
     }
 
-    const payload = {
+    const { error } = await db.from("users_simple").upsert({
       id: session.user.id,
       email: session.user.email,
       full_name: fullName,
       skin_type: skinType,
       goal: goal,
       daily_minutes: parseInt(dailyMinutes, 10)
-    };
-
-    const { data, error } = await db
-      .from("users_simple")
-      .upsert(payload)
-      .select();
+    });
 
     if (error) {
-      console.error("UPSERT ERROR:", error);
       return { ok: false, error: error.message };
     }
 
-    console.log("PROFILE SAVED:", data);
-
-    return { ok: true, data };
+    return { ok: true };
   } catch (err) {
-    console.error("PROFILE EXCEPTION:", err);
     return { ok: false, error: err.message };
   }
 }
@@ -151,25 +138,9 @@ async function completeRitualNew() {
       return { ok: false, error: error.message };
     }
 
-    await sendCompletionEmail(
-      session.user.email,
-      session.user.user_metadata?.full_name || "User"
-    );
-
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message };
-  }
-}
-
-async function sendCompletionEmail(email, name) {
-  try {
-    const db = getDb();
-    await db.functions.invoke("send-email", {
-      body: { email, name, type: "completion" }
-    });
-  } catch (err) {
-    console.error("Email error:", err);
   }
 }
 
