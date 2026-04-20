@@ -205,7 +205,7 @@
       btn.disabled = true;
       btn.textContent = "Guardando...";
 
-      const result = await window.tgrNew.updateProfileNew(fullName, skinType, goal);
+      const result = await window.tgrNew.updateProfileNew(fullName, skinType, goal, dailyMinutes);
 
       if (!result.ok) {
         errorDiv.textContent = "Error al guardar el perfil: " + result.error;
