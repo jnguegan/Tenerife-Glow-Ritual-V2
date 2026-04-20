@@ -1,7 +1,14 @@
-const db = window.supabaseClient;
+function getDb() {
+  if (!window.supabaseClient) {
+    throw new Error("Supabase client not initialized.");
+  }
+  return window.supabaseClient;
+}
 
 async function signUpNew(email, password, fullName) {
   try {
+    const db = getDb();
+
     const { data, error } = await db.auth.signUp({
       email,
       password,
@@ -16,18 +23,29 @@ async function signUpNew(email, password, fullName) {
       return { ok: false, error: error.message };
     }
 
-    if (data?.user) {
-      // Create user profile
-      await db.from("users_simple").insert({
-        id: data.user.id,
-        email: email,
-        full_name: fullName
-      });
-
-      return { ok: true, user: data.user };
+    if (!data?.user) {
+      return { ok: false, error: "No user created." };
     }
 
-    return { ok: false, error: "No user created" };
+    const { error: profileError } = await db.from("users_simple").upsert({
+      id: data.user.id,
+      email,
+      full_name: fullName
+    });
+
+    if (profileError) {
+      return { ok: false, error: profileError.message };
+    }
+
+    const {
+      data: { session }
+    } = await db.auth.getSession();
+
+    return {
+      ok: true,
+      user: data.user,
+      sessionExists: !!session
+    };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -35,17 +53,22 @@ async function signUpNew(email, password, fullName) {
 
 async function logInNew(email, password) {
   try {
-    const { data, error } = await db.auth.signInWithPassword({ email, password });
+    const db = getDb();
+
+    const { data, error } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
 
     if (error) {
       return { ok: false, error: error.message };
     }
 
-    if (data?.user) {
-      return { ok: true, user: data.user };
+    if (!data?.user) {
+      return { ok: false, error: "No user returned." };
     }
 
-    return { ok: false, error: "No user returned" };
+    return { ok: true, user: data.user };
   } catch (err) {
     return { ok: false, error: err.message };
   }
@@ -53,8 +76,9 @@ async function logInNew(email, password) {
 
 async function logOutNew() {
   try {
+    const db = getDb();
+
     localStorage.removeItem("tgr-language");
-    localStorage.clear();
     await db.auth.signOut();
     window.location.href = "index.html";
   } catch (err) {
@@ -65,7 +89,10 @@ async function logOutNew() {
 
 async function getSessionNew() {
   try {
-    const { data: { session } } = await db.auth.getSession();
+    const db = getDb();
+    const {
+      data: { session }
+    } = await db.auth.getSession();
     return session;
   } catch (err) {
     console.error("Session error:", err);
@@ -73,18 +100,29 @@ async function getSessionNew() {
   }
 }
 
-async function updateProfileNew(fullName, skinType, goal) {
+async function updateProfileNew(fullName, skinType, goal, dailyMinutes) {
   try {
+    const db = getDb();
     const session = await getSessionNew();
-    if (!session) return { ok: false, error: "No session" };
 
-    const { error } = await db.from("users_simple").update({
-      full_name: fullName,
-      skin_type: skinType,
-      goal: goal
-    }).eq("id", session.user.id);
+    if (!session) {
+      return { ok: false, error: "No active session." };
+    }
 
-    if (error) return { ok: false, error: error.message };
+    const { error } = await db
+      .from("users_simple")
+      .update({
+        full_name: fullName,
+        skin_type: skinType,
+        goal: goal,
+        daily_minutes: parseInt(dailyMinutes, 10)
+      })
+      .eq("id", session.user.id);
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -93,21 +131,32 @@ async function updateProfileNew(fullName, skinType, goal) {
 
 async function completeRitualNew() {
   try {
+    const db = getDb();
     const session = await getSessionNew();
-    if (!session) return { ok: false, error: "No session" };
+
+    if (!session) {
+      return { ok: false, error: "No active session." };
+    }
 
     const today = new Date().toISOString().split("T")[0];
 
-    const { error } = await db.from("ritual_tracking").upsert({
-      user_id: session.user.id,
-      completed_date: today,
-      completed_at: new Date().toISOString()
-    }, { onConflict: "user_id,completed_date" });
+    const { error } = await db.from("ritual_tracking").upsert(
+      {
+        user_id: session.user.id,
+        completed_date: today,
+        completed_at: new Date().toISOString()
+      },
+      { onConflict: "user_id,completed_date" }
+    );
 
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
 
-    // Send email notification
-    await sendCompletionEmail(session.user.email, session.user.user_metadata?.full_name || "User");
+    await sendCompletionEmail(
+      session.user.email,
+      session.user.user_metadata?.full_name || "User"
+    );
 
     return { ok: true };
   } catch (err) {
@@ -117,8 +166,9 @@ async function completeRitualNew() {
 
 async function sendCompletionEmail(email, name) {
   try {
-    await db.functions.invoke('send-email', {
-      body: { email, name, type: 'completion' }
+    const db = getDb();
+    await db.functions.invoke("send-email", {
+      body: { email, name, type: "completion" }
     });
   } catch (err) {
     console.error("Email error:", err);
@@ -127,10 +177,24 @@ async function sendCompletionEmail(email, name) {
 
 async function getUserProfileNew() {
   try {
+    const db = getDb();
     const session = await getSessionNew();
-    if (!session) return null;
 
-    const { data } = await db.from("users_simple").select("*").eq("id", session.user.id).single();
+    if (!session) {
+      return null;
+    }
+
+    const { data, error } = await db
+      .from("users_simple")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
+
+    if (error) {
+      console.error("Profile fetch error:", error.message);
+      return null;
+    }
+
     return data;
   } catch (err) {
     console.error("Profile error:", err);
@@ -140,27 +204,39 @@ async function getUserProfileNew() {
 
 async function getRitualStatsNew() {
   try {
+    const db = getDb();
     const session = await getSessionNew();
-    if (!session) return null;
 
-    const { data } = await db.from("ritual_tracking").select("completed_date").eq("user_id", session.user.id);
+    if (!session) {
+      return null;
+    }
 
-    const completedDates = (data || []).map(r => r.completed_date);
+    const { data, error } = await db
+      .from("ritual_tracking")
+      .select("completed_date")
+      .eq("user_id", session.user.id)
+      .order("completed_date", { ascending: false });
+
+    if (error) {
+      console.error("Stats fetch error:", error.message);
+      return null;
+    }
+
+    const completedDates = (data || []).map((r) => r.completed_date);
     const daysCompleted = completedDates.length;
 
-    // Calculate streak
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     let streak = 0;
-    let check = new Date(today);
+    const check = new Date();
+    check.setHours(0, 0, 0, 0);
 
-    for (const dateStr of completedDates.sort((a, b) => new Date(b) - new Date(a))) {
+    for (const dateStr of completedDates) {
       const d = new Date(dateStr);
       d.setHours(0, 0, 0, 0);
+
       if (d.getTime() === check.getTime()) {
         streak++;
         check.setDate(check.getDate() - 1);
-      } else {
+      } else if (d.getTime() < check.getTime()) {
         break;
       }
     }
