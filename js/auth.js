@@ -99,22 +99,30 @@ async function updateProfileNew(fullName, skinType, goal, dailyMinutes) {
       return { ok: false, error: "No active session." };
     }
 
-    const { error } = await db
+    const payload = {
+      id: session.user.id,
+      email: session.user.email,
+      full_name: fullName,
+      skin_type: skinType,
+      goal: goal,
+      daily_minutes: parseInt(dailyMinutes, 10)
+    };
+
+    const { data, error } = await db
       .from("users_simple")
-      .update({
-        full_name: fullName,
-        skin_type: skinType,
-        goal: goal,
-        daily_minutes: parseInt(dailyMinutes, 10)
-      })
-      .eq("id", session.user.id);
+      .upsert(payload)
+      .select();
 
     if (error) {
+      console.error("UPSERT ERROR:", error);
       return { ok: false, error: error.message };
     }
 
-    return { ok: true };
+    console.log("PROFILE SAVED:", data);
+
+    return { ok: true, data };
   } catch (err) {
+    console.error("PROFILE EXCEPTION:", err);
     return { ok: false, error: err.message };
   }
 }
