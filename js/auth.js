@@ -7,7 +7,7 @@ function getDb() {
 
 async function signUpNew(email, password, fullName) {
   try {
-    const db = getDb();
+    const db = window.supabaseClient;
 
     const { data, error } = await db.auth.signUp({
       email,
@@ -23,19 +23,7 @@ async function signUpNew(email, password, fullName) {
       return { ok: false, error: error.message };
     }
 
-    if (!data?.user) {
-      return { ok: false, error: "No user created." };
-    }
-
-    const { error: profileError } = await db.from("users_simple").upsert({
-      id: data.user.id,
-      email,
-      full_name: fullName
-    });
-
-    if (profileError) {
-      return { ok: false, error: profileError.message };
-    }
+    // ⚠️ DO NOT insert into users_simple here anymore
 
     const {
       data: { session }
@@ -43,9 +31,11 @@ async function signUpNew(email, password, fullName) {
 
     return {
       ok: true,
-      user: data.user,
-      sessionExists: !!session
+      user: data?.user || null,
+      sessionExists: !!session,
+      fullName
     };
+
   } catch (err) {
     return { ok: false, error: err.message };
   }
