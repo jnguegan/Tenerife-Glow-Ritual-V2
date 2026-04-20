@@ -1,7 +1,7 @@
 const db = window.supabaseClient;
 
 function signUpNew(email, password, fullName) {
-  return db.auth.signUp({
+  db.auth.signUp({
     email,
     password,
     options: {
@@ -11,41 +11,46 @@ function signUpNew(email, password, fullName) {
     }
   }).then(({ data, error }) => {
     if (error) {
-      return { ok: false, error: error.message };
+      console.error("Signup error:", error.message);
+      return;
     }
     if (data?.user) {
-      // Create user profile in background
+      // Create user profile in background (don't wait)
       db.from("users_simple").insert({
         id: data.user.id,
         email: email,
         full_name: fullName
       }).catch(err => console.error("Profile error:", err));
       
-      // Redirect after 500ms
+      // Redirect immediately
       setTimeout(() => {
         window.location.href = "profile.html";
-      }, 500);
-      
-      return { ok: true, user: data?.user || null };
+      }, 300);
     }
-    return { ok: false, error: "No user returned" };
   }).catch(err => {
-    return { ok: false, error: err.message };
+    console.error("Signup catch error:", err);
   });
+  
+  // Return immediately without waiting
+  return { ok: true };
 }
 
 function logInNew(email, password) {
-  return db.auth.signInWithPassword({ email, password }).then(({ data, error }) => {
+  db.auth.signInWithPassword({ email, password }).then(({ data, error }) => {
     if (error) {
-      return { ok: false, error: error.message };
+      console.error("Login error:", error.message);
+      return;
     }
     if (data?.user) {
-      return { ok: true, user: data.user };
+      setTimeout(() => {
+        window.location.href = "dashboard.html";
+      }, 300);
     }
-    return { ok: false, error: "No user returned" };
   }).catch(err => {
-    return { ok: false, error: err.message };
+    console.error("Login error:", err);
   });
+  
+  return { ok: true };
 }
 
 function logOutNew() {
@@ -91,7 +96,6 @@ function completeRitualNew() {
       completed_at: new Date().toISOString()
     }, { onConflict: "user_id,completed_date" }).catch(err => console.error("Ritual error:", err));
     
-    // Send email in background
     sendCompletionEmail(session.user.email, session.user.user_metadata?.full_name || "User");
     
     return { ok: true };
@@ -122,7 +126,6 @@ function getRitualStatsNew() {
       const completedDates = (data || []).map(r => r.completed_date);
       const daysCompleted = completedDates.length;
       
-      // Calculate streak
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       let streak = 0;
