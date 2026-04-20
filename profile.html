@@ -163,14 +163,14 @@
 
       <div class="form-actions">
         <button type="submit" class="btn btn-primary">Guardar perfil</button>
-        <a href="dashboard-new.html" class="btn btn-secondary">Volver al panel</a>
+        <a href="dashboard.html" class="btn btn-secondary">Volver al panel</a>
       </div>
     </form>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
-  <script src="auth-new.js"></script>
+  <script src="auth.js"></script>
 
   <script>
   document.addEventListener("DOMContentLoaded", async function() {
@@ -181,7 +181,7 @@
     // Check session
     const session = await window.tgrNew.getSessionNew();
     if (!session) {
-      window.location.href = "login-new.html";
+      window.location.href = "login.html";
       return;
     }
 
@@ -235,7 +235,7 @@
           successDiv.classList.add("show");
 
           setTimeout(() => {
-            window.location.href = "dashboard-new.html";
+            window.location.href = "dashboard.html";
           }, 1500);
         } catch (err) {
           errorDiv.textContent = "Error: " + err.message;
