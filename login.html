@@ -105,10 +105,10 @@
 
           <div class="btn-group">
             <button type="submit" class="btn btn-primary">Iniciar sesión</button>
-            <a href="signup-new.html" class="btn btn-secondary">Crear cuenta nueva</a>
+            <a href="signup.html" class="btn btn-secondary">Crear cuenta nueva</a>
           </div>
 
-          <p class="form-footer">¿No tienes cuenta? <a href="signup-new.html">Crea una aquí</a></p>
+          <p class="form-footer">¿No tienes cuenta? <a href="signup.html">Crea una aquí</a></p>
         </form>
       </div>
     </div>
@@ -116,7 +116,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
-  <script src="auth-new.js"></script>
+  <script src="auth.js"></script>
 
   <script>
   document.addEventListener("DOMContentLoaded", function() {
@@ -127,7 +127,7 @@
     // Check if already logged in
     window.supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        window.location.href = "dashboard-new.html";
+        window.location.href = "dashboard.html";
       }
     });
 
@@ -150,7 +150,7 @@
         btn.disabled = false;
         btn.textContent = "Iniciar sesión";
       } else {
-        window.location.href = "dashboard-new.html";
+        window.location.href = "dashboard.html";
       }
     });
 
