@@ -5,9 +5,10 @@ function getDb() {
   return window.supabaseClient;
 }
 
-const db = window.supabaseClient;
 async function signUpNew(email, password, fullName) {
   try {
+    const db = getDb();
+
     const { data, error } = await db.auth.signUp({
       email,
       password,
@@ -92,6 +93,7 @@ async function getSessionNew() {
     const {
       data: { session }
     } = await db.auth.getSession();
+
     return session;
   } catch (err) {
     console.error("Session error:", err);
@@ -114,7 +116,7 @@ async function updateProfileNew(fullName, skinType, goal, dailyMinutes) {
       full_name: fullName,
       skin_type: skinType,
       goal: goal,
-      daily_minutes: parseInt(dailyMinutes, 10)
+      daily_minutes: parseInt(dailyMinutes, 10) || 0
     });
 
     if (error) {
@@ -230,6 +232,17 @@ async function getRitualStatsNew() {
   }
 }
 
+async function requireAuthNew(redirectTo = "login.html") {
+  const session = await getSessionNew();
+
+  if (!session) {
+    window.location.href = redirectTo;
+    return null;
+  }
+
+  return session;
+}
+
 window.tgrNew = {
   signUpNew,
   logInNew,
@@ -238,5 +251,6 @@ window.tgrNew = {
   updateProfileNew,
   completeRitualNew,
   getUserProfileNew,
-  getRitualStatsNew
+  getRitualStatsNew,
+  requireAuthNew
 };
