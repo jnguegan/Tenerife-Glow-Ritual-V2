@@ -7,8 +7,6 @@ function getDb() {
 
 async function signUpNew(email, password, fullName) {
   try {
-    const db = getDb();
-
     const { data, error } = await db.auth.signUp({
       email,
       password,
@@ -23,16 +21,30 @@ async function signUpNew(email, password, fullName) {
       return { ok: false, error: error.message };
     }
 
-    const {
-      data: { session }
-    } = await db.auth.getSession();
+    if (!data?.user) {
+      return { ok: false, error: "No user created" };
+    }
 
-    return {
-      ok: true,
-      user: data?.user || null,
-      sessionExists: !!session,
-      fullName
-    };
+    const { error: profileError } = await db.from("users_simple").upsert({
+      id: data.user.id,
+      email: email,
+      full_name: fullName
+    });
+
+    if (profileError) {
+      return { ok: false, error: profileError.message };
+    }
+
+    const { error: loginError } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (loginError) {
+      return { ok: false, error: loginError.message };
+    }
+
+    return { ok: true, user: data.user };
   } catch (err) {
     return { ok: false, error: err.message };
   }
