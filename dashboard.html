@@ -554,7 +554,9 @@
         this.textContent = "Marcar ritual como completado";
         alert("Error al guardar. Intenta de nuevo.");
       }
+      
     });
+    await renderRewards();
   });
 
   function toggleStep(idx) {
