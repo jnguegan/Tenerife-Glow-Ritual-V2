@@ -5,6 +5,7 @@ function getDb() {
   return window.supabaseClient;
 }
 
+const db = window.supabaseClient;
 async function signUpNew(email, password, fullName) {
   try {
     const { data, error } = await db.auth.signUp({
