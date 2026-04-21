@@ -406,9 +406,102 @@
   const rewards = await window.tgrNew.getRewardsNew();
 
   if (!rewards || !rewards.length) {
-    rewardsList.innerHTML = `<div class="reward-empty-card">Todavía no hay recompensas disponibles.</div>`;
-    return;
+  const roadmap = [
+    {
+      day: 7,
+      title: "Inicio del Ritual",
+      description: "Has creado tu hábito. Tu piel comienza a responder.",
+      reward: "Acceso a recomendaciones personalizadas avanzadas"
+    },
+    {
+      day: 14,
+      title: "Regalo de Bienestar",
+      description: "Tu constancia se convierte en transformación visible.",
+      reward: "Tratamiento facial o experiencia spa exclusiva"
+    },
+    {
+      day: 30,
+      title: "Ritual Consolidado",
+      description: "Tu piel entra en equilibrio. Los resultados son más consistentes.",
+      reward: "Ritual premium personalizado y recomendaciones exclusivas"
+    },
+    {
+      day: 60,
+      title: "Nivel Avanzado",
+      description: "Disciplina y cuidado profundo. Tu piel refleja el cambio.",
+      reward: "Experiencia premium con beneficios especiales"
+    },
+    {
+      day: 90,
+      title: "Transformación Completa",
+      description: "Un nuevo estándar de cuidado personal y constancia.",
+      reward: "Experiencia exclusiva Tenerife Glow Ritual"
+    }
+  ];
+
+  const stats = await window.tgrNew.getRitualStatsNew();
+  const completedDays = stats?.daysCompleted || 0;
+  const nextReward = roadmap.find((item) => completedDays < item.day);
+
+  let statusMessage = "";
+  if (nextReward) {
+    const daysLeft = nextReward.day - completedDays;
+    statusMessage = `
+      <div class="reward-empty-card">
+        <strong>Aún no tienes recompensas desbloqueadas.</strong><br>
+        Te faltan <strong>${daysLeft} día${daysLeft === 1 ? "" : "s"}</strong> para tu próxima recompensa.
+      </div>
+    `;
+  } else {
+    statusMessage = `
+      <div class="reward-empty-card">
+        <strong>¡Has desbloqueado todas las recompensas disponibles!</strong><br>
+        Sigue completando tu ritual para mantener tu progreso.
+      </div>
+    `;
   }
+
+  rewardsList.innerHTML = `
+    ${statusMessage}
+    ${roadmap.map((item) => {
+      let statusLabel = "Bloqueada";
+      let statusClass = "locked";
+
+      if (completedDays >= item.day) {
+        statusLabel = "Disponible";
+        statusClass = "earned";
+      } else if (nextReward && nextReward.day === item.day) {
+        statusLabel = "Próxima";
+        statusClass = "locked";
+      }
+
+      let progressText = "";
+      if (completedDays >= item.day) {
+        progressText = "Esta recompensa ya está disponible para ti.";
+      } else {
+        const remaining = item.day - completedDays;
+        progressText = `Te faltan ${remaining} día${remaining === 1 ? "" : "s"} para desbloquear esta recompensa.`;
+      }
+
+      return `
+        <article class="reward-premium-card ${statusClass}">
+          <div class="reward-premium-top">
+            <div class="reward-milestone">${item.day} días</div>
+            <h3 class="reward-premium-title">${item.title}</h3>
+            <p class="reward-premium-desc">${item.description}</p>
+            <p class="reward-premium-desc"><strong>Recompensa:</strong> ${item.reward}</p>
+            <p class="reward-progress-note">${progressText}</p>
+          </div>
+
+          <div class="reward-premium-bottom">
+            <div class="reward-status-pill ${statusClass}">${statusLabel}</div>
+          </div>
+        </article>
+      `;
+    }).join("")}
+  `;
+  return;
+}
 
   rewardsList.innerHTML = rewards.map((reward) => {
     const title = reward.reward_name_es || reward.reward_name_en || "Recompensa";
@@ -559,7 +652,7 @@
       }
       
     });
-    await renderRewards();
+    setTimeout(renderRewards, 500);
   });
 
   function toggleStep(idx) {
