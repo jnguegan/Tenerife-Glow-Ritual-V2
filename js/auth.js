@@ -399,7 +399,7 @@ window.tgrNew = {
   completeRitualNew,
   getUserProfileNew,
   getRitualStatsNew,
-  requireAuthNew
+  requireAuthNew,
   syncRewardsNew,
   getRewardsNew,
   claimRewardNew
