@@ -243,6 +243,153 @@ async function requireAuthNew(redirectTo = "login.html") {
   return session;
 }
 
+async function syncRewardsNew() {
+  try {
+    const db = getDb();
+    const session = await getSessionNew();
+
+    if (!session) {
+      return { ok: false, error: "No active session." };
+    }
+
+    const stats = await getRitualStatsNew();
+    if (!stats) {
+      return { ok: false, error: "Could not load ritual stats." };
+    }
+
+    const totalDays = stats.daysCompleted || 0;
+
+    const { data: rewards, error: rewardsError } = await db
+      .from("rewards_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("days_required", { ascending: true });
+
+    if (rewardsError) {
+      return { ok: false, error: rewardsError.message };
+    }
+
+    for (const reward of rewards || []) {
+      if (totalDays >= reward.days_required) {
+        const { error: upsertError } = await db
+          .from("user_rewards")
+          .upsert(
+            {
+              user_id: session.user.id,
+              reward_id: reward.id,
+              earned_at: new Date().toISOString(),
+              claimed: false
+            },
+            { onConflict: "user_id,reward_id" }
+          );
+
+        if (upsertError) {
+          console.error("Reward sync error:", upsertError.message);
+        }
+      }
+    }
+
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+async function getRewardsNew() {
+  try {
+    const db = getDb();
+    const session = await getSessionNew();
+
+    if (!session) {
+      return [];
+    }
+
+    const stats = await getRitualStatsNew();
+    const totalDays = stats?.daysCompleted || 0;
+
+    const { data: rewards, error: rewardsError } = await db
+      .from("rewards_catalog")
+      .select("*")
+      .eq("is_active", true)
+      .order("days_required", { ascending: true });
+
+    if (rewardsError) {
+      console.error("Rewards catalog error:", rewardsError.message);
+      return [];
+    }
+
+    const { data: earnedRows, error: earnedError } = await db
+      .from("user_rewards")
+      .select("*")
+      .eq("user_id", session.user.id);
+
+    if (earnedError) {
+      console.error("User rewards error:", earnedError.message);
+      return [];
+    }
+
+    const earnedMap = new Map();
+    for (const row of earnedRows || []) {
+      earnedMap.set(row.reward_id, row);
+    }
+
+    return (rewards || []).map((reward) => {
+      const earnedRow = earnedMap.get(reward.id);
+
+      let status = "locked";
+      if (earnedRow && earnedRow.claimed) {
+        status = "claimed";
+      } else if (earnedRow) {
+        status = "earned";
+      }
+
+      return {
+        ...reward,
+        status,
+        user_reward_id: earnedRow?.id || null,
+        claimed: earnedRow?.claimed || false,
+        earned_at: earnedRow?.earned_at || null,
+        claimed_at: earnedRow?.claimed_at || null,
+        progress_days: totalDays
+      };
+    });
+  } catch (err) {
+    console.error("Get rewards error:", err);
+    return [];
+  }
+}
+
+async function claimRewardNew(rewardId) {
+  try {
+    const db = getDb();
+    const session = await getSessionNew();
+
+    if (!session) {
+      return { ok: false, error: "No active session." };
+    }
+
+    const { data, error } = await db
+      .from("user_rewards")
+      .update({
+        claimed: true,
+        claimed_at: new Date().toISOString()
+      })
+      .eq("user_id", session.user.id)
+      .eq("reward_id", rewardId)
+      .eq("claimed", false)
+      .select()
+      .single();
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 window.tgrNew = {
   signUpNew,
   logInNew,
@@ -253,4 +400,7 @@ window.tgrNew = {
   getUserProfileNew,
   getRitualStatsNew,
   requireAuthNew
+  syncRewardsNew,
+  getRewardsNew,
+  claimRewardNew
 };
