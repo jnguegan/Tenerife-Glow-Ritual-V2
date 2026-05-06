@@ -69,7 +69,23 @@
       .dash-hero { padding: 2rem 1.5rem; } 
       .dash-grid { grid-template-columns: 1fr; }
     }
+.ritual-reset-message {
+  display: none;
+  margin-bottom: 2rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid rgba(201,169,110,0.26);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, #fffaf1 0%, #f5f0e8 100%);
+  color: var(--stone-dark);
+  font-size: 14px;
+  line-height: 1.7;
+}
 
+.ritual-reset-message strong {
+  color: var(--obsidian);
+  font-weight: 500;
+}
+    
 .rewards-premium-section{
   margin-bottom: 2rem;
   padding: 2rem;
@@ -326,10 +342,14 @@
         </div>
       </div>
 
-      <div class="dash-grid">
+     </div>
+
+<div class="ritual-reset-message" id="ritualResetMessage"></div>
+
+<div class="dash-grid">
         <div class="stat-block">
           <div class="stat-number" id="daysCompleted">0</div>
-          <div class="stat-label">Días completados</div>
+         <div class="stat-label">Días de ritual actual</div>
         </div>
         <div class="stat-block">
           <div class="stat-number" id="currentStreak">0</div>
@@ -440,7 +460,7 @@
   ];
 
   const stats = await window.tgrNew.getRitualStatsNew();
-  const completedDays = stats?.daysCompleted || 0;
+  const completedDays = stats?.streak || 0;
   const nextReward = roadmap.find((item) => completedDays < item.day);
 
   let statusMessage = "";
@@ -597,11 +617,30 @@
     }
 
     if (stats) {
-      document.getElementById("daysCompleted").textContent = stats.daysCompleted;
-      document.getElementById("currentStreak").textContent = stats.streak;
-      const rate = stats.daysCompleted > 0 ? Math.round((stats.daysCompleted / 90) * 100) : 0;
-      document.getElementById("completionRate").textContent = rate + "%";
-    }
+  document.getElementById("daysCompleted").textContent = stats.streak;
+  document.getElementById("currentStreak").textContent = stats.streak;
+
+  const rate = stats.streak > 0 ? Math.round((stats.streak / 90) * 100) : 0;
+  document.getElementById("completionRate").textContent = rate + "%";
+
+  const resetMessage = document.getElementById("ritualResetMessage");
+
+  if (resetMessage && stats.resetState === "missed") {
+    resetMessage.style.display = "block";
+    resetMessage.innerHTML = `
+      <strong>Has perdido tu racha.</strong><br>
+      Hoy puedes volver a empezar desde el día 1. La constancia diaria es la base de tu ritual.
+    `;
+  }
+
+  if (resetMessage && stats.resetState === "restartedToday") {
+    resetMessage.style.display = "block";
+    resetMessage.innerHTML = `
+      <strong>Hoy vuelves a empezar.</strong><br>
+      Tu ritual se ha reiniciado desde el día 1. Sigue con calma y constancia.
+    `;
+  }
+}
 
     const dailyMinutes = profile?.daily_minutes || 10;
     const ritualSteps = [];
