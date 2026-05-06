@@ -209,29 +209,47 @@ async function getRitualStatsNew() {
     const completedDates = (data || []).map((r) => r.completed_date);
     const daysCompleted = completedDates.length;
 
+    const completedSet = new Set(completedDates);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split("T")[0];
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
+
     let streak = 0;
-    const check = new Date();
-    check.setHours(0, 0, 0, 0);
 
-    for (const dateStr of completedDates) {
-      const d = new Date(dateStr);
-      d.setHours(0, 0, 0, 0);
+    // 🔥 STRICT RULE:
+    // If user didn't complete today or yesterday → streak = 0
+    if (completedSet.has(todayStr) || completedSet.has(yesterdayStr)) {
+      const check = completedSet.has(todayStr)
+        ? new Date(today)
+        : new Date(yesterday);
 
-      if (d.getTime() === check.getTime()) {
-        streak++;
-        check.setDate(check.getDate() - 1);
-      } else if (d.getTime() < check.getTime()) {
-        break;
+      while (true) {
+        const checkStr = check.toISOString().split("T")[0];
+
+        if (completedSet.has(checkStr)) {
+          streak++;
+          check.setDate(check.getDate() - 1);
+        } else {
+          break;
+        }
       }
     }
 
-    return { daysCompleted, streak, completedDates };
+    return {
+      daysCompleted,
+      streak,
+      completedDates
+    };
   } catch (err) {
     console.error("Stats error:", err);
     return null;
   }
 }
-
 async function requireAuthNew(redirectTo = "login.html") {
   const session = await getSessionNew();
 
@@ -257,7 +275,7 @@ async function syncRewardsNew() {
       return { ok: false, error: "Could not load ritual stats." };
     }
 
-    const totalDays = stats.daysCompleted || 0;
+    const totalDays = stats.streak || 0;
 
     const { data: rewards, error: rewardsError } = await db
       .from("rewards_catalog")
@@ -305,7 +323,7 @@ async function getRewardsNew() {
     }
 
     const stats = await getRitualStatsNew();
-    const totalDays = stats?.daysCompleted || 0;
+    const totalDays = stats?.streak || 0;
 
     const { data: rewards, error: rewardsError } = await db
       .from("rewards_catalog")
