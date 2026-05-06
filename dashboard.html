@@ -679,6 +679,7 @@
       this.textContent = "Guardando...";
 
       const result = await window.tgrNew.completeRitualNew();
+      console.log("complete ritual result:", result);
       if (result.ok) {
         this.textContent = "¡Completado!";
         setTimeout(() => {
