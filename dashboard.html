@@ -460,6 +460,7 @@
   ];
 
   const stats = await window.tgrNew.getRitualStatsNew();
+    console.log("ritual stats in rewards:", stats);
   const completedDays = stats?.streak || 0;
   const nextReward = roadmap.find((item) => completedDays < item.day);
 
@@ -607,6 +608,7 @@
 
     const profile = await window.tgrNew.getUserProfileNew();
     const stats = await window.tgrNew.getRitualStatsNew();
+    console.log("ritual stats in rewards:", stats);
 
     if (profile) {
       document.getElementById("heroName").textContent = `Hola, ${profile.full_name || "Usuario"}`;
