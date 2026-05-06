@@ -206,6 +206,13 @@ async function getRitualStatsNew() {
       return null;
     }
 
+    function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+    
     const completedDates = (data || []).map((r) => r.completed_date);
     const daysCompleted = completedDates.length;
 
@@ -213,11 +220,11 @@ async function getRitualStatsNew() {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split("T")[0];
+   const todayStr = formatLocalDate(today);
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const yesterdayStr = formatLocalDate(yesterday);
 
     let streak = 0;
 
@@ -229,7 +236,7 @@ async function getRitualStatsNew() {
         : new Date(yesterday);
 
       while (true) {
-        const checkStr = check.toISOString().split("T")[0];
+       const checkStr = formatLocalDate(check);
 
         if (completedSet.has(checkStr)) {
           streak++;
